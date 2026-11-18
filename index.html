@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UK Market Access &amp; NICE Health Technology Assessment Model</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>tailwind.config={theme:{extend:{fontFamily:{sans:['Inter','ui-sans-serif','system-ui','sans-serif']},borderRadius:{DEFAULT:'4px'}}}};</script>
+<style>
+body{background:#F8FAFC;color:#334155;font-family:'Inter',ui-sans-serif,system-ui,sans-serif}
+.tabular{font-variant-numeric:tabular-nums;font-family:'JetBrains Mono',ui-monospace,monospace}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:16px;background:transparent;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:4px;background:#CBD5E1;border-radius:2px}
+input[type=range]::-moz-range-track{height:4px;background:#CBD5E1;border-radius:2px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;margin-top:-6px;border-radius:50%;background:#0F172A;border:none;transition:box-shadow .15s}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#0F172A;border:none;transition:box-shadow .15s}
+input[type=range]:hover::-webkit-slider-thumb,input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 4px rgba(15,23,42,.14)}
+input[type=range]:hover::-moz-range-thumb,input[type=range]:focus-visible::-moz-range-thumb{box-shadow:0 0 0 4px rgba(15,23,42,.14)}
+input[type=range]:focus{outline:none}
+select:focus-visible,button:focus-visible{outline:2px solid #0F172A;outline-offset:2px}
+.preset-btn[aria-pressed=true]{background:#0F172A;color:#fff;border-color:#0F172A}
+.ok{background:#F0FDFA;border-color:#99F6E4;color:#0F766E}
+.bad{background:#FEF2F2;border-color:#FECACA;color:#B91C1C}
+.plain{background:#fff;border-color:#E2E8F0;color:#0F172A}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body class="min-h-screen">
+<header class="w-full bg-white border-b border-slate-200">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-5 flex flex-col md:flex-row md:items-end md:justify-between gap-2">
+    <div>
+      <h1 class="text-xl sm:text-2xl font-bold text-[#0F172A] tracking-tight">UK Market Access &amp; NICE Health Technology Assessment Model</h1>
+      <p class="text-sm text-[#64748B] mt-1">Commercial Reimbursement &amp; QALY Sensitivity Simulator</p>
+    </div>
+    <span class="text-xs font-medium text-[#64748B] border border-slate-200 rounded px-2 py-1 self-start md:self-auto">NICE HTA Framework (England &amp; Wales) &middot; parameters as of November 2026</span>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+  <section aria-label="Case study presets" class="mb-6">
+    <div id="presetStrip" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2" role="group"></div>
+    <div class="mt-3 bg-white border border-slate-200 rounded px-4 py-3"><p id="briefingText" class="text-sm leading-relaxed"></p></div>
+    <div class="mt-3 flex flex-wrap gap-2">
+      <button type="button" id="copyLink" class="bg-white border border-slate-300 rounded px-3 py-1.5 text-xs font-medium text-[#0F172A] hover:border-slate-500">Copy scenario link</button>
+      <button type="button" id="exportCsv" class="bg-white border border-slate-300 rounded px-3 py-1.5 text-xs font-medium text-[#0F172A] hover:border-slate-500">Download results (CSV)</button>
+    </div>
+  </section>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <section class="lg:col-span-5 bg-white border border-slate-200 rounded self-start" aria-label="Model parameters">
+      <div class="px-5 py-4 border-b border-slate-200"><h2 class="text-base font-semibold text-[#0F172A]">Model Parameters</h2></div>
+      <div id="controls"></div>
+    </section>
+
+    <section class="lg:col-span-7 space-y-6" aria-label="Valuation and policy outputs">
+      <div id="kpis" class="grid grid-cols-2 xl:grid-cols-4 gap-3"></div>
+      <div class="space-y-3">
+        <div class="bg-white border border-slate-200 rounded px-4 py-3"><p class="text-xs text-[#64748B]">Summary</p><p id="readout" class="text-sm text-[#0F172A] mt-1 leading-relaxed"></p></div>
+        <div id="bannerNice" class="border rounded px-4 py-3" role="status" aria-live="polite"><p class="text-xs opacity-80">NICE Technology Appraisal Verdict</p><p id="bannerNiceText" class="text-sm font-semibold mt-1"></p><p id="bannerBand" class="text-xs mt-1 opacity-90"></p><p id="bannerAccess" class="text-xs mt-1 opacity-90"></p></div>
+        <div id="bannerBudget" class="border rounded px-4 py-3" role="status" aria-live="polite"><p class="text-xs opacity-80">NHS England Budget Impact Test (£40m per year, first three years)</p><p id="bannerBudgetText" class="text-sm font-semibold mt-1"></p></div>
+      </div>
+      <div class="bg-white border border-slate-200 rounded p-5">
+        <h2 class="text-base font-semibold text-[#0F172A]">ICER Sensitivity to PAS Discount</h2>
+        <p class="text-xs text-[#64748B] mt-1 mb-4">Severity-weighted ICER (£ per QALY) against the effective NICE threshold.</p>
+        <div class="h-80 relative"><canvas id="icerSensitivityChart"></canvas></div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white border border-slate-200 rounded p-5">
+          <h2 class="text-base font-semibold text-[#0F172A]">Five-Year NHS Budget Impact</h2>
+          <p class="text-xs text-[#64748B] mt-1 mb-4">Net spend by year (£m) against the £40m test.</p>
+          <div class="h-64 relative"><canvas id="budgetChart"></canvas></div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded p-5">
+          <h2 class="text-base font-semibold text-[#0F172A]">Cost-Effectiveness Acceptability</h2>
+          <p class="text-xs text-[#64748B] mt-1 mb-4">Probability of cost-effectiveness across 1,000 simulated draws.</p>
+          <div class="h-64 relative"><canvas id="ceacChart"></canvas></div>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white border border-slate-200 rounded p-5">
+          <h2 class="text-base font-semibold text-[#0F172A]">One-Way Sensitivity</h2>
+          <p class="text-xs text-[#64748B] mt-1 mb-4">ICER range when each input moves ±20%. Base ICER <span id="tornadoBase" class="tabular"></span>.</p>
+          <div class="h-64 relative"><canvas id="tornadoChart"></canvas></div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded p-5">
+          <h2 class="text-base font-semibold text-[#0F172A]">Cost-Effectiveness Plane</h2>
+          <p class="text-xs text-[#64748B] mt-1 mb-4">Simulated draws; those below the line are cost-effective.</p>
+          <div class="h-64 relative"><canvas id="planeChart"></canvas></div>
+        </div>
+      </div>
+      <div class="bg-white border border-slate-200 rounded p-5">
+        <h2 class="text-base font-semibold text-[#0F172A]">Gross-to-Net Revenue Bridge</h2>
+        <p class="text-xs text-[#64748B] mt-1 mb-4">Peak-year revenue from list price to company contribution (£m).</p>
+        <div class="h-64 relative"><canvas id="waterfallChart"></canvas></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="border-t border-slate-200 bg-white mt-10">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <h2 class="text-base font-semibold text-[#0F172A] mb-5">Methodology &amp; Governance</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm leading-relaxed">
+      <div class="space-y-5">
+        <div><h3 class="font-semibold text-[#0F172A] mb-1">ICER, discounting and net monetary benefit</h3><p>ICER = ΔCost / ΔQALY, where ΔCost is net price minus comparator cost and ΔQALY is annual utility gain accumulated over the modelled life years. Following the NICE reference case, QALYs are discounted at 3.5% a year; 1.5% is accepted only exceptionally. The course price is paid up front; ongoing administration and monitoring costs are discounted, and carer QALYs are added without severity weighting. Net monetary benefit is threshold × weighted QALYs minus ΔCost; a positive value means the technology is cost-effective.</p></div>
+        <div><h3 class="font-semibold text-[#0F172A] mb-1">Cost-effectiveness thresholds</h3><p>From April 2026 NICE applies £25,000 to £35,000 per QALY in technology appraisals, up from £20,000 to £30,000. Highly Specialised Technologies use £100,000 per QALY, rising toward £300,000 as lifetime QALY gains grow from 10 to 30; this model scales the weight linearly over that range.</p></div>
+        <div><h3 class="font-semibold text-[#0F172A] mb-1">Severity weighting</h3><p>Severity modifiers multiply the incremental QALYs: 1.2x for an absolute shortfall of 12 to 18 QALYs or a proportional shortfall of 85% to 95%, and 1.7x at 18 QALYs or 95% and above. The higher of the two weights applies, using discounted QALYs. The modifier adjusts the ICER rather than the threshold itself.</p></div>
+      </div>
+      <div class="space-y-5">
+        <div><h3 class="font-semibold text-[#0F172A] mb-1">Confidential Patient Access Schemes</h3><p>A PAS lowers the net price paid by the NHS without changing the list price, usually confidentially. The model therefore reports the break-even discount: the smallest discount at which the ICER meets the effective threshold.</p></div>
+        <div><h3 class="font-semibold text-[#0F172A] mb-1">NHS England Budget Impact Test</h3><p>If expected net spend exceeds £40 million in any of a technology's first three years, NHS England may open commercial discussions. The threshold was doubled from £20 million under the 2025 Commercial Framework for New Medicines. Uptake is ramped over five years at 20%, 50%, 80%, 100% and 100% of peak.</p></div>
+        <div><h3 class="font-semibold text-[#0F172A] mb-1">VPAG rebate and probabilistic analysis</h3><p>Company revenue is shown after the 2026 VPAG newer-medicines payment of 14.5% plus the 1% investment programme payment. The acceptability curve draws 1,000 samples varying life years (±30%), utility gain (±25%) and comparator cost (±25%) around the selected values.</p></div>
+        <div><h3 class="font-semibold text-[#0F172A] mb-1">Managed access and company valuation</h3><p>Where a technology is not recommended but shows plausible potential for cost-effectiveness, NICE can recommend use within the Cancer Drugs Fund or Innovative Medicines Fund while evidence is collected. The model flags this when at least 10% of simulated draws are cost-effective, which is a modelling heuristic and not a NICE rule. Valuation applies the modelled approval probability to twelve years of post-VPAG contribution, with revenue falling 70% once exclusivity ends, and excludes R&amp;D and overheads. NHS funding is generally required within 90 days of final guidance.</p></div>
+      </div>
+    </div>
+    <p class="mt-8 pt-5 border-t border-slate-200 text-xs text-[#64748B] leading-relaxed">Sources: NICE health technology evaluations manual and cost-effectiveness threshold announcement (December 2025); NHS England Commercial Framework for New Medicines (January 2025); DHSC 2026 VPAG headline payment percentage. This tool is an educational simplification, not affiliated with or endorsed by NICE, NHS England or DHSC. It omits time-varying costs, survival modelling, carer effects, managed access and committee judgement, and must not be used for reimbursement decisions or investment advice. All presets are illustrative.</p>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const gbp = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 });
+  const num = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0 });
+  const el = id => document.getElementById(id);
+  const DISCOUNT_STEPS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80];
+  const UPTAKE_RAMP = [0.2, 0.5, 0.8, 1, 1];
+  const BUDGET_TEST_MILLIONS = 40;
+  const VPAG_REBATE = 0.155;
+  const DRAWS = 1000;
+
+  const PRESETS = [
+    { id: 'cart', name: 'CAR-T Oncology Therapy',
+      values: { listPrice: 280000, comparatorCost: 35000, pasDiscount: 55, lifeYears: 3.2, utilityGain: 0.55, pathway: 'std35', severity: 'auto', discountRate: '3.5', eligiblePatients: 600, uptake: 45, healthyQalys: 20, currentQalys: 0.8 },
+      note: 'Autologous cell therapies for severe haematological cancers usually qualify for the 1.7x severity weight on incremental QALYs, yet still need deep confidential discounts to offset manufacturing and administration costs. Small eligible populations keep spend below the £40m budget impact test.' },
+    { id: 'cardio', name: 'Cardiometabolic Biologic',
+      values: { listPrice: 12000, comparatorCost: 2500, pasDiscount: 20, lifeYears: 5, utilityGain: 0.10, pathway: 'std30', severity: '1', discountRate: '3.5', eligiblePatients: 25000, uptake: 30 },
+      note: 'Chronic primary-care biologics receive no severity weighting and are judged against the £25,000 to £35,000 per QALY range, so a favourable ICER can still breach the £40m budget impact test at scale. NHS England discussions then centre on affordability, typically volume-linked rebates or phased rollout.' },
+    { id: 'gene', name: 'Paediatric Gene Therapy',
+      values: { listPrice: 2000000, comparatorCost: 40000, pasDiscount: 50, lifeYears: 40, utilityGain: 0.50, pathway: 'hst', severity: '1', discountRate: '3.5', eligiblePatients: 80, uptake: 70, carerQalys: 1 },
+      note: 'One-off therapies for ultra-rare paediatric conditions can enter the Highly Specialised Technologies programme, where the £100,000 per QALY base rises toward £300,000 as lifetime gains move from 10 to 30 QALYs. Patient numbers are tiny, but a seven-figure net price still makes total spend material.' },
+    { id: 'onc', name: 'Advanced Cancer Immunotherapy',
+      values: { listPrice: 90000, comparatorCost: 25000, pasDiscount: 30, lifeYears: 2.5, utilityGain: 0.50, pathway: 'std35', severity: 'auto', discountRate: '3.5', eligiblePatients: 4000, uptake: 40, healthyQalys: 15, currentQalys: 2, annualCost: 3000, treatmentYears: 1.5 },
+      note: 'Immunotherapies in advanced cancer often argue for the 1.2x severity weight where the absolute QALY shortfall is large. High incidence means volumes can push spend past the £40m test even after a discount.' },
+    { id: 'neuro', name: 'Neurodegeneration Antibody',
+      values: { listPrice: 60000, comparatorCost: 8000, pasDiscount: 25, lifeYears: 2, utilityGain: 0.08, pathway: 'std35', severity: '1', discountRate: '3.5', eligiblePatients: 40000, uptake: 20, annualCost: 4000, treatmentYears: 2 },
+      note: 'Modest QALY gains in slowly progressing disease, combined with a very large eligible population, push the ICER well above the upper threshold and spend far beyond £40m. Price, not just efficacy, decides whether a mass-market neurology therapy is reimbursable.' }
+  ];
+
+  const CONTROLS = [
+    { group: 'Pricing & Commercial Terms', items: [
+      { k: 'listPrice', label: 'List price per treatment course', min: 5000, max: 3000000, step: 500, fmt: v => gbp.format(v) },
+      { k: 'comparatorCost', label: 'Comparator cost per patient', min: 1000, max: 100000, step: 500, fmt: v => gbp.format(v) },
+      { k: 'pasDiscount', label: 'Confidential PAS discount', min: 0, max: 80, step: 1, fmt: v => `${v}%` },
+      { k: 'annualCost', label: 'Ongoing administration and monitoring per year', min: 0, max: 100000, step: 500, fmt: v => gbp.format(v) },
+      { k: 'treatmentYears', label: 'Years of ongoing costs', min: 0, max: 10, step: 0.5, fmt: v => `${v.toFixed(1)} yrs` } ] },
+    { group: 'Clinical Efficacy & NICE Pathway', items: [
+      { k: 'lifeYears', label: 'Incremental life years gained', min: 0.1, max: 40, step: 0.1, fmt: v => `${v.toFixed(1)} yrs` },
+      { k: 'utilityGain', label: 'Utility gain per year', min: 0.02, max: 0.85, step: 0.01, fmt: v => `+${v.toFixed(2)} QALY/yr` },
+      { k: 'pathway', label: 'Appraisal pathway and threshold', options: [['std25', 'Standard Appraisal — £25,000 / QALY'], ['std30', 'Standard Appraisal — £30,000 / QALY'], ['std35', 'Standard Appraisal — £35,000 / QALY'], ['hst', 'Highly Specialised Technology — £100,000 to £300,000 / QALY']] },
+      { k: 'severity', label: 'Severity modifier (QALY weight)', options: [['auto', 'Derive from QALY shortfall (NICE cut-offs)'], ['1', 'None — 1.0x'], ['1.2', 'Moderate — 1.2x'], ['1.7', 'High — 1.7x']] },
+      { k: 'healthyQalys', label: 'Discounted QALYs without the condition', min: 1, max: 30, step: 0.5, fmt: v => v.toFixed(1) },
+      { k: 'currentQalys', label: 'Discounted QALYs on current care', min: 0, max: 30, step: 0.5, fmt: v => v.toFixed(1) },
+      { k: 'carerQalys', label: 'Carer QALYs gained', min: 0, max: 3, step: 0.1, fmt: v => v.toFixed(1) },
+      { k: 'discountRate', label: 'Annual discount rate', options: [['3.5', '3.5% reference case'], ['1.5', '1.5% exceptional case'], ['0', '0% sensitivity']] } ] },
+    { group: 'NHS Epidemiology & Commercial Uptake', items: [
+      { k: 'eligiblePatients', label: 'Eligible NHS patients per year', min: 50, max: 50000, step: 50, fmt: v => `${num.format(v)} patients` },
+      { k: 'uptake', label: 'Peak market uptake', min: 5, max: 80, step: 1, fmt: v => `${v}%` } ] },
+    { group: 'Commercial Valuation', items: [
+      { k: 'cogsPct', label: 'Cost of goods as share of net revenue', min: 5, max: 60, step: 1, fmt: v => `${v}%` },
+      { k: 'wacc', label: 'Discount rate for valuation (WACC)', min: 6, max: 15, step: 0.5, fmt: v => `${v.toFixed(1)}%` },
+      { k: 'exclusivityYears', label: 'Years of market exclusivity', min: 4, max: 12, step: 1, fmt: v => `${v} yrs` } ] }
+  ];
+  const DEFAULTS = { healthyQalys: 12, currentQalys: 10, annualCost: 0, treatmentYears: 0, carerQalys: 0, cogsPct: 15, wacc: 10, exclusivityYears: 10 };
+
+  const state = { ...DEFAULTS, ...PRESETS[0].values };
+
+  const annuityFactor = (years, ratePct) => {
+    const r = ratePct / 100;
+    return r === 0 ? years : (1 - Math.pow(1 + r, -years)) / Math.log(1 + r);
+  };
+
+  const hstThreshold = qalys => 100000 * (1 + 2 * Math.min(Math.max((qalys - 10) / 20, 0), 1));
+
+  const effectiveThreshold = (s, discountedQalys) =>
+    s.pathway === 'hst' ? hstThreshold(discountedQalys) : Number(s.pathway.slice(3)) * 1000;
+
+  const shortfallOf = s => {
+    const absolute = Math.max(s.healthyQalys - s.currentQalys, 0);
+    const proportional = s.healthyQalys > 0 ? absolute / s.healthyQalys : 0;
+    const weight = Math.max(absolute >= 18 ? 1.7 : absolute >= 12 ? 1.2 : 1, proportional >= 0.95 ? 1.7 : proportional >= 0.85 ? 1.2 : 1);
+    return { absolute, proportional, weight };
+  };
+
+  const qalyWeight = s => (s.pathway === 'hst' ? 1 : s.severity === 'auto' ? shortfallOf(s).weight : Number(s.severity));
+
+  const mulberry32 = seed => () => {
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+
+  const NOISE = (() => {
+    const rand = mulberry32(20261117);
+    return Array.from({ length: DRAWS }, () => [rand() + rand() - 1, rand() + rand() - 1, rand() + rand() - 1]);
+  })();
+
+  const core = s => {
+    const rate = Number(s.discountRate);
+    const netPrice = s.listPrice * (1 - s.pasDiscount / 100);
+    const ongoing = s.annualCost * annuityFactor(s.treatmentYears, rate);
+    const incrementalCost = netPrice + ongoing - s.comparatorCost;
+    const patientQalys = s.utilityGain * annuityFactor(s.lifeYears, rate);
+    const gainQalys = patientQalys + s.carerQalys;
+    const weightedQalys = patientQalys * qalyWeight(s) + s.carerQalys;
+    const threshold = effectiveThreshold(s, gainQalys);
+    return { netPrice, ongoing, incrementalCost, gainQalys, weightedQalys, threshold, icer: incrementalCost / weightedQalys };
+  };
+
+  const patientsInYear = (s, y) => Math.round(s.eligiblePatients * (s.uptake / 100) * (UPTAKE_RAMP[y] ?? 1));
+
+  const calculateMetrics = s => {
+    const c = core(s);
+    const sf = shortfallOf(s);
+    const isDominant = c.incrementalCost <= 0;
+    const isRecommended = isDominant || c.icer <= c.threshold;
+    const netMonetaryBenefit = c.threshold * c.weightedQalys - c.incrementalCost;
+    const maxAllowablePrice = s.comparatorCost - c.ongoing + c.threshold * c.weightedQalys;
+    const rawRequiredDiscount = (1 - maxAllowablePrice / s.listPrice) * 100;
+    const breakEvenLabel = rawRequiredDiscount <= 0 ? '0.0% (Approved at List)'
+      : rawRequiredDiscount > 80 ? '>80.0% (Commercially Unviable)' : `${rawRequiredDiscount.toFixed(1)}%`;
+
+    const erosion = y => (y + 1 > s.exclusivityYears ? 0.3 : 1);
+    const years = Array.from({ length: 12 }, (_, y) => y);
+    const perPatientSpend = c.netPrice + s.annualCost * s.treatmentYears;
+    const spendSeries = years.map(y => (perPatientSpend * patientsInYear(s, y) * erosion(y)) / 1e6);
+    const netRevenueSeries = years.map(y => (c.netPrice * patientsInYear(s, y) * erosion(y)) / 1e6);
+    const peakNet = Math.max(...netRevenueSeries);
+    const peakIndex = netRevenueSeries.indexOf(peakNet);
+    const peakGross = (s.listPrice * patientsInYear(s, peakIndex) * erosion(peakIndex)) / 1e6;
+    const contribution = netRevenueSeries.map(r => r * (1 - VPAG_REBATE) * (1 - s.cogsPct / 100));
+    const presentValue = contribution.reduce((sum, v, y) => sum + v / Math.pow(1 + s.wacc / 100, y + 1), 0);
+
+    const rate = Number(s.discountRate);
+    const draws = NOISE.map(([a, b, n]) => ({
+      q: s.utilityGain * (1 + 0.25 * b) * annuityFactor(s.lifeYears * (1 + 0.3 * a), rate) * qalyWeight(s) + s.carerQalys,
+      cost: c.netPrice + c.ongoing - s.comparatorCost * (1 + 0.25 * n)
+    }));
+    const probabilityAt = wtp => draws.filter(d => wtp * d.q - d.cost >= 0).length / DRAWS;
+    const probability = probabilityAt(c.threshold);
+
+    return { ...c, weight: qalyWeight(s), absShortfall: sf.absolute, propShortfall: sf.proportional, isDominant, isRecommended,
+      netMonetaryBenefit, rawRequiredDiscount, breakEvenLabel, spendByYear: spendSeries.slice(0, 5),
+      peakSpend: Math.max(...spendSeries.slice(0, 3)), peakGross, peakNet, peakCompanyRevenue: peakNet * (1 - VPAG_REBATE),
+      enpv: probability * presentValue, draws, probability, probabilityAt, exceedsBudget: Math.max(...spendSeries.slice(0, 3)) > BUDGET_TEST_MILLIONS };
+  };
+
+  const buildControls = () => {
+    el('controls').innerHTML = CONTROLS.map((g, i) => `
+      <div class="px-5 py-5 ${i < CONTROLS.length - 1 ? 'border-b border-slate-200' : ''} space-y-5">
+        <h3 class="text-sm font-semibold text-[#0F172A]">${g.group}</h3>
+        ${g.items.map(c => c.options ? `
+          <div><label for="${c.k}" class="block text-sm mb-2">${c.label}</label>
+          <select id="${c.k}" class="w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm text-[#0F172A]">${c.options.map(o => `<option value="${o[0]}">${o[1]}</option>`).join('')}</select></div>` : `
+          <div><div class="flex justify-between items-baseline mb-2"><label for="${c.k}" class="text-sm">${c.label}</label><output id="${c.k}Out" class="tabular text-sm font-medium text-[#0F172A]"></output></div>
+          <input type="range" id="${c.k}" min="${c.min}" max="${c.max}" step="${c.step}"></div>`).join('')}
+      </div>`).join('');
+    el('presetStrip').innerHTML = PRESETS.map(p => `<button type="button" class="preset-btn bg-white border border-slate-200 rounded px-4 py-2.5 text-sm font-medium text-[#0F172A] text-left hover:border-slate-400 transition-colors" data-preset="${p.id}" aria-pressed="false">${p.name}</button>`).join('');
+  };
+
+  const paint = (node, kind) => { node.classList.remove('ok', 'bad', 'plain'); node.classList.add(kind); };
+
+  const kpiCard = (label, value, kind = 'plain', sub = '') =>
+    `<div class="border rounded p-4 ${kind}"><p class="text-xs ${kind === 'plain' ? 'text-[#64748B]' : 'opacity-80'}">${label}</p><p class="tabular text-lg font-semibold mt-2 break-words">${value}</p>${sub ? `<p class="tabular text-xs mt-1 opacity-70">${sub}</p>` : ''}</div>`;
+
+  let icerChart, budgetChart, ceacChart;
+  const axisFont = { family: 'JetBrains Mono', size: 11 };
+  const titleFont = { family: 'Inter', size: 12 };
+  const baseOptions = () => ({
+    responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { color: '#334155', usePointStyle: true, boxWidth: 8, font: titleFont } },
+      tooltip: { backgroundColor: '#0F172A', cornerRadius: 4, titleFont: axisFont, bodyFont: axisFont }
+    }
+  });
+  const axis = (text, cb, extra = {}) => ({
+    title: { display: true, text, color: '#64748B', font: titleFont },
+    ticks: { color: '#64748B', font: axisFont, callback: cb }, grid: { color: '#E2E8F0' }, ...extra
+  });
+
+  const buildCurve = m => DISCOUNT_STEPS.map(d => ({
+    x: d, y: (state.listPrice * (1 - d / 100) + m.ongoing - state.comparatorCost) / m.weightedQalys }));
+
+  const TORNADO_INPUTS = [['List price', 'listPrice'], ['Comparator cost', 'comparatorCost'], ['Life years gained', 'lifeYears'],
+    ['Utility gain', 'utilityGain'], ['Ongoing annual cost', 'annualCost'], ['Carer QALYs', 'carerQalys']];
+
+  const tornadoRows = () => TORNADO_INPUTS.filter(([, k]) => state[k] > 0).map(([label, k]) => {
+    const low = core({ ...state, [k]: state[k] * 0.8 }).icer;
+    const high = core({ ...state, [k]: state[k] * 1.2 }).icer;
+    return { label, low: Math.min(low, high), high: Math.max(low, high) };
+  }).sort((x, y) => (y.high - y.low) - (x.high - x.low));
+
+  const planeData = m => {
+    const good = [], bad = [];
+    m.draws.forEach(d => (m.threshold * d.q - d.cost >= 0 ? good : bad).push({ x: d.q, y: d.cost }));
+    const maxQ = Math.max(...m.draws.map(d => d.q)) * 1.05;
+    return { good, bad, line: [{ x: 0, y: 0 }, { x: maxQ, y: m.threshold * maxQ }] };
+  };
+
+  const waterfallData = m => {
+    const gross = m.peakGross, pas = m.peakGross - m.peakNet, vpag = m.peakNet * VPAG_REBATE;
+    const goods = (m.peakNet - vpag) * state.cogsPct / 100, kept = m.peakNet - vpag - goods;
+    return [[0, gross], [gross - pas, gross], [gross - pas - vpag, gross - pas], [kept, gross - pas - vpag], [0, kept]];
+  };
+
+  let tornadoChart, planeChart, waterfallChart;
+
+  const initExtraCharts = m => {
+    const rows = tornadoRows();
+    const o4 = baseOptions();
+    o4.indexAxis = 'y';
+    o4.plugins.legend.display = false;
+    o4.scales = { x: axis('ICER (£ per QALY)', v => gbp.format(v)), y: { ticks: { color: '#334155', font: titleFont }, grid: { display: false } } };
+    o4.plugins.tooltip.callbacks = { label: i => `${gbp.format(i.raw[0])} to ${gbp.format(i.raw[1])}` };
+    tornadoChart = new Chart(el('tornadoChart').getContext('2d'), { type: 'bar', data: { labels: rows.map(r => r.label),
+      datasets: [{ label: 'ICER range', data: rows.map(r => [r.low, r.high]), backgroundColor: '#334155', borderRadius: 2 }] }, options: o4 });
+
+    const pl = planeData(m);
+    const o5 = baseOptions();
+    o5.interaction = { mode: 'nearest', intersect: false };
+    o5.scales = { x: axis('Incremental QALYs', v => Number(v).toFixed(1)), y: axis('Incremental cost', v => gbp.format(v)) };
+    o5.plugins.tooltip.callbacks = { label: i => `${i.parsed.x.toFixed(2)} QALYs, ${gbp.format(i.parsed.y)}` };
+    planeChart = new Chart(el('planeChart').getContext('2d'), { type: 'scatter', data: { datasets: [
+      { label: 'Cost-effective draws', data: pl.good, backgroundColor: 'rgba(15,118,110,0.45)', pointRadius: 2 },
+      { label: 'Not cost-effective', data: pl.bad, backgroundColor: 'rgba(185,28,28,0.45)', pointRadius: 2 },
+      { label: 'Active threshold', data: pl.line, showLine: true, borderColor: '#0F172A', backgroundColor: '#0F172A', borderDash: [6, 4], borderWidth: 2, pointRadius: 0 }
+    ] }, options: o5 });
+
+    const o6 = baseOptions();
+    o6.plugins.legend.display = false;
+    o6.scales = { x: axis('', undefined, { grid: { display: false }, title: { display: false } }), y: { ...axis('£m, peak year', v => v), beginAtZero: true } };
+    o6.plugins.tooltip.callbacks = { label: i => `£${(i.raw[1] - i.raw[0]).toFixed(1)}m` };
+    waterfallChart = new Chart(el('waterfallChart').getContext('2d'), { type: 'bar', data: {
+      labels: ['Gross at list', 'PAS discount', 'VPAG rebate', 'Cost of goods', 'Contribution'],
+      datasets: [{ data: waterfallData(m), backgroundColor: ['#334155', '#B91C1C', '#B91C1C', '#B91C1C', '#0F766E'], borderRadius: 2 }] }, options: o6 });
+  };
+
+  const updateExtraCharts = m => {
+    const rows = tornadoRows();
+    tornadoChart.data.labels = rows.map(r => r.label);
+    tornadoChart.data.datasets[0].data = rows.map(r => [r.low, r.high]);
+    tornadoChart.update('none');
+    const pl = planeData(m);
+    planeChart.data.datasets[0].data = pl.good;
+    planeChart.data.datasets[1].data = pl.bad;
+    planeChart.data.datasets[2].data = pl.line;
+    planeChart.update('none');
+    waterfallChart.data.datasets[0].data = waterfallData(m);
+    waterfallChart.update('none');
+  };
+
+  const ceacPoints = m => {
+    const maxWtp = state.pathway === 'hst' ? 300000 : 80000;
+    const step = maxWtp / 32;
+    return Array.from({ length: 33 }, (_, i) => ({ x: i * step, y: m.probabilityAt(i * step) * 100 }));
+  };
+
+  const initCharts = () => {
+    const m = calculateMetrics(state);
+    const o1 = baseOptions();
+    o1.interaction = { mode: 'nearest', intersect: false };
+    o1.scales = { x: { type: 'linear', min: 0, max: 80, ...axis('PAS discount', v => `${v}%`, { grid: { color: '#F1F5F9' } }), ticks: { stepSize: 5, color: '#64748B', font: axisFont, callback: v => `${v}%` } }, y: axis('ICER (£ per QALY)', v => gbp.format(v)) };
+    o1.plugins.tooltip.callbacks = { title: i => `PAS discount ${Number(i[0].parsed.x).toFixed(0)}%`, label: i => `${i.dataset.label}: ${gbp.format(i.parsed.y)}` };
+    icerChart = new Chart(el('icerSensitivityChart').getContext('2d'), { type: 'line', data: { datasets: [
+      { label: 'Net ICER', data: buildCurve(m), borderColor: '#0F172A', backgroundColor: '#0F172A', borderWidth: 2, tension: 0.1, pointRadius: 3 },
+      { label: 'Effective NICE threshold', data: DISCOUNT_STEPS.map(d => ({ x: d, y: m.threshold })), borderColor: '#0F766E', backgroundColor: '#0F766E', borderDash: [6, 4], borderWidth: 2, pointRadius: 0 },
+      { label: 'Current PAS discount', data: [{ x: state.pasDiscount, y: m.icer }], showLine: false, pointRadius: 6, pointHoverRadius: 7, pointBackgroundColor: '#B91C1C', pointBorderColor: '#FFFFFF', pointBorderWidth: 2 }
+    ] }, options: o1 });
+
+    const o2 = baseOptions();
+    o2.scales = { x: axis('Year since launch', v => `Y${v + 1}`, { grid: { display: false } }), y: { ...axis('£m', v => v), beginAtZero: true } };
+    o2.scales.x.ticks.callback = function (v) { return `Y${v + 1}`; };
+    o2.plugins.tooltip.callbacks = { label: i => `${i.dataset.label}: £${i.parsed.y.toFixed(1)}m` };
+    budgetChart = new Chart(el('budgetChart').getContext('2d'), { type: 'bar', data: { labels: ['Y1', 'Y2', 'Y3', 'Y4', 'Y5'], datasets: [
+      { label: 'Net NHS spend', data: m.spendByYear, backgroundColor: '#334155', borderRadius: 2 },
+      { type: 'line', label: 'Budget impact test', data: Array(5).fill(BUDGET_TEST_MILLIONS), borderColor: '#B91C1C', borderDash: [6, 4], borderWidth: 2, pointRadius: 0 }
+    ] }, options: o2 });
+    budgetChart.options.scales.x = { ...axis('Year since launch', undefined, { grid: { display: false } }) };
+
+    const o3 = baseOptions();
+    o3.interaction = { mode: 'nearest', intersect: false };
+    o3.scales = { x: { type: 'linear', ...axis('Willingness to pay (£ per QALY)', v => `£${v / 1000}k`) }, y: { min: 0, max: 100, ...axis('Probability (%)', v => `${v}%`) } };
+    o3.plugins.tooltip.callbacks = { title: i => gbp.format(i[0].parsed.x), label: i => `${i.dataset.label}: ${i.parsed.y.toFixed(1)}%` };
+    ceacChart = new Chart(el('ceacChart').getContext('2d'), { type: 'line', data: { datasets: [
+      { label: 'Probability cost-effective', data: ceacPoints(m), borderColor: '#0F172A', backgroundColor: '#0F172A', borderWidth: 2, tension: 0.1, pointRadius: 0 },
+      { label: 'Active threshold', data: [{ x: m.threshold, y: m.probability * 100 }], showLine: false, pointRadius: 6, pointBackgroundColor: '#B91C1C', pointBorderColor: '#FFFFFF', pointBorderWidth: 2 }
+    ] }, options: o3 });
+    initExtraCharts(m);
+  };
+
+  const updateCharts = m => {
+    icerChart.data.datasets[0].data = buildCurve(m);
+    icerChart.data.datasets[1].data = DISCOUNT_STEPS.map(d => ({ x: d, y: m.threshold }));
+    icerChart.data.datasets[2].data = [{ x: state.pasDiscount, y: m.icer }];
+    icerChart.update('none');
+    budgetChart.data.datasets[0].data = m.spendByYear;
+    budgetChart.update('none');
+    ceacChart.data.datasets[0].data = ceacPoints(m);
+    ceacChart.data.datasets[1].data = [{ x: m.threshold, y: m.probability * 100 }];
+    ceacChart.update('none');
+    updateExtraCharts(m);
+  };
+
+  const render = () => {
+    const m = calculateMetrics(state);
+    CONTROLS.forEach(g => g.items.forEach(c => { if (c.fmt) el(`${c.k}Out`).textContent = c.fmt(state[c.k]); }));
+
+    const verdictKind = m.isRecommended ? 'ok' : 'bad';
+    const money = v => `£${v.toFixed(1)}m`;
+    el('kpis').innerHTML = [
+      kpiCard('Net NHS Price (Post-PAS)', gbp.format(m.netPrice)),
+      kpiCard('Incremental QALYs Gained', m.weightedQalys.toFixed(2), 'plain', `${m.gainQalys.toFixed(2)} unweighted, discounted`),
+      kpiCard('Incremental Cost-Effectiveness Ratio (ICER)', m.isDominant ? 'Dominant (Cost-Saving)' : `${gbp.format(m.icer)} / QALY`, verdictKind),
+      kpiCard('Net Monetary Benefit per Patient', gbp.format(m.netMonetaryBenefit), m.netMonetaryBenefit >= 0 ? 'ok' : 'bad', `at ${gbp.format(m.threshold)} / QALY`),
+      kpiCard('Break-Even PAS Discount for Approval', m.breakEvenLabel, verdictKind),
+      kpiCard('Peak Annual Net NHS Spend (£m)', money(m.peakSpend), 'plain', 'first three years'),
+      kpiCard('Probability Cost-Effective', `${(m.probability * 100).toFixed(1)}%`, m.probability >= 0.5 ? 'ok' : 'bad', `${DRAWS.toLocaleString('en-GB')} simulated draws`),
+      kpiCard('Severity QALY Weight', state.pathway === 'hst' ? 'Not applied (HST)' : `${m.weight.toFixed(1)}x`, 'plain', `shortfall ${m.absShortfall.toFixed(1)} QALYs, ${(m.propShortfall * 100).toFixed(0)}%`),
+      kpiCard('Incremental Cost per Patient', gbp.format(m.incrementalCost), 'plain', 'discounted, vs comparator'),
+      kpiCard('Discounted Ongoing Costs', gbp.format(m.ongoing), 'plain', 'administration and monitoring'),
+      kpiCard('Peak Company Revenue (Post-VPAG)', money(m.peakCompanyRevenue), 'plain', `after ${(VPAG_REBATE * 100).toFixed(1)}% rebate`),
+      kpiCard('Risk-Adjusted NPV', money(m.enpv), m.enpv >= 0 ? 'ok' : 'bad', `${state.wacc}% WACC, approval-weighted`)
+    ].join('');
+    el('tornadoBase').textContent = m.isDominant ? 'cost-saving' : gbp.format(m.icer);
+
+    el('readout').textContent = m.isDominant
+      ? 'The technology costs less than its comparator while delivering additional QALYs, so it dominates.'
+      : m.isRecommended
+        ? `At a ${state.pasDiscount}% discount the ICER is ${gbp.format(m.icer)} per QALY, below the effective threshold of ${gbp.format(m.threshold)}.`
+        : `At a ${state.pasDiscount}% discount the ICER is ${gbp.format(m.icer)} per QALY, above the effective threshold of ${gbp.format(m.threshold)}; approval needs a discount of ${m.breakEvenLabel}.`;
+
+    paint(el('bannerNice'), verdictKind);
+    el('bannerNiceText').textContent = m.isDominant
+      ? 'Recommended — the technology is cost-saving against the comparator.'
+      : m.isRecommended
+        ? `Recommended — ICER of ${gbp.format(m.icer)} per QALY is within the ${gbp.format(m.threshold)} threshold.`
+        : `Not Recommended — ICER of ${gbp.format(m.icer)} per QALY exceeds the ${gbp.format(m.threshold)} threshold.`;
+    const isHst = state.pathway === 'hst';
+    const [lower, upper] = isHst ? [100000, m.threshold] : [25000, 35000];
+    el('bannerBand').textContent = m.isDominant ? '' : m.icer <= lower
+      ? `The ICER is at or below ${gbp.format(lower)}, the ${isHst ? 'HST base threshold' : 'lower bound of the standard range'}.`
+      : m.icer <= upper
+        ? `The ICER sits between ${gbp.format(lower)} and ${gbp.format(upper)}; acceptance depends on how certain the committee judges the evidence.`
+        : `The ICER is above ${gbp.format(upper)}, the top of the ${isHst ? 'weighted HST range' : 'standard range'}.`;
+    el('bannerAccess').textContent = !m.isRecommended && m.probability >= 0.1
+      ? 'Managed access candidate: plausible potential for cost-effectiveness, so the Cancer Drugs Fund (oncology) or Innovative Medicines Fund could fund use while evidence is collected.'
+      : '';
+
+    paint(el('bannerBudget'), m.exceedsBudget ? 'bad' : 'ok');
+    el('bannerBudgetText').textContent = m.exceedsBudget
+      ? `Commercial Negotiation Triggered — Exceeds £${BUDGET_TEST_MILLIONS.toFixed(1)}m/yr NHS England Budget Impact Threshold (peak £${m.peakSpend.toFixed(1)}m)`
+      : `Within Threshold — peak spend of £${m.peakSpend.toFixed(1)}m/yr is below the £${BUDGET_TEST_MILLIONS.toFixed(1)}m NHS England limit`;
+
+    try { history.replaceState(null, '', `#${new URLSearchParams(state)}`); } catch (e) { /* hash sync unavailable */ }
+    updateCharts(m);
+  };
+
+  const syncControls = () => Object.keys(state).forEach(k => { el(k).value = state[k]; });
+  const setActivePreset = id => document.querySelectorAll('.preset-btn').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.preset === id)));
+
+  const loadPreset = id => {
+    const preset = PRESETS.find(p => p.id === id);
+    Object.assign(state, DEFAULTS, preset.values);
+    el('briefingText').textContent = preset.note;
+    setActivePreset(id);
+    syncControls();
+    render();
+  };
+
+  const bindControls = () => {
+    Object.keys(state).forEach(k => {
+      const control = el(k);
+      const isSelect = control.tagName === 'SELECT';
+      const handler = () => { state[k] = isSelect ? control.value : parseFloat(control.value); setActivePreset(null); render(); };
+      control.addEventListener('input', handler);
+      control.addEventListener('change', handler);
+    });
+    document.querySelectorAll('.preset-btn').forEach(b => b.addEventListener('click', () => loadPreset(b.dataset.preset)));
+  };
+
+  const exportCsv = () => {
+    const m = calculateMetrics(state);
+    const rows = [['Input', 'Value'], ...Object.entries(state), [], ['Output', 'Value'],
+      ['Net NHS price (GBP)', m.netPrice.toFixed(0)], ['Weighted QALYs', m.weightedQalys.toFixed(3)], ['ICER (GBP per QALY)', m.icer.toFixed(0)],
+      ['Effective threshold (GBP per QALY)', m.threshold.toFixed(0)], ['Net monetary benefit (GBP)', m.netMonetaryBenefit.toFixed(0)],
+      ['Break-even PAS discount', m.breakEvenLabel], ['Peak net NHS spend (GBP m)', m.peakSpend.toFixed(1)],
+      ['Probability cost-effective', `${(m.probability * 100).toFixed(1)}%`], ['Risk-adjusted NPV (GBP m)', m.enpv.toFixed(1)]];
+    const blob = new Blob([rows.map(r => r.join(',')).join('\n')], { type: 'text/csv;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'nice-hta-scenario.csv';
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
+  const copyLink = async () => {
+    const button = el('copyLink');
+    try { await navigator.clipboard.writeText(location.href); button.textContent = 'Link copied'; }
+    catch (e) { button.textContent = 'Copy from the address bar'; }
+    setTimeout(() => { button.textContent = 'Copy scenario link'; }, 1800);
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    buildControls();
+    initCharts();
+    bindControls();
+    el('copyLink').addEventListener('click', copyLink);
+    el('exportCsv').addEventListener('click', exportCsv);
+    const shared = new URLSearchParams(location.hash.slice(1));
+    if (shared.has('listPrice')) {
+      Object.keys(state).forEach(k => {
+        if (!shared.has(k)) return;
+        const value = typeof state[k] === 'number' ? parseFloat(shared.get(k)) : shared.get(k);
+        if (!Number.isNaN(value)) state[k] = value;
+      });
+      el('briefingText').textContent = 'Scenario loaded from a shared link.';
+      setActivePreset(null);
+      syncControls();
+      render();
+    } else {
+      loadPreset('cart');
+    }
+  });
+})();
+</script>
+</body>
+</html>
